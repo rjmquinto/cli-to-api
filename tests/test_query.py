@@ -71,6 +71,24 @@ def test_cli_failure():
     }
 
 
+def test_unexpected_error():
+    class BrokenCLI(MockCLI):
+        async def query(self, question: str, model: str) -> str:
+            raise FileNotFoundError("claude: command not found")
+
+    client = TestClient(
+        create_app(CLIRegistry([BrokenCLI("claude", ["claude-a"])])),
+        raise_server_exceptions=False,
+    )
+
+    response = client.post("/query", json={"question": "hi", "model": "claude-a"})
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "error": {"code": "internal_error", "message": "Internal server error."}
+    }
+
+
 def test_timeout():
     client = client_for(MockCLI("claude", ["claude-a"], delay=1), timeout_s=0.05)
 

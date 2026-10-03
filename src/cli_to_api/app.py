@@ -39,6 +39,11 @@ def create_app(registry: CLIRegistry, *, timeout_s: float = 120) -> FastAPI:
         field = ".".join(str(part) for part in first["loc"])
         return error_response(400, "invalid_request", f"{field}: {first['msg']}")
 
+    @app.exception_handler(Exception)
+    async def internal_error(_: Request, exc: Exception) -> JSONResponse:
+        # Starlette re-raises after this handler, so the server logs the traceback.
+        return error_response(500, "internal_error", "Internal server error.")
+
     @app.post("/query", response_model=QueryResponse)
     async def query(request: QueryRequest) -> QueryResponse | JSONResponse:
         try:
