@@ -39,6 +39,24 @@ anything exposed beyond a trusted network.
 CLAUDE_INTEGRATION=1 uv run pytest tests/test_claude_integration.py
 ```
 
+### Codex (partially tested)
+
+Requires [Codex CLI](https://github.com/openai/codex) (`codex`). Not yet run with
+credentials; tested only up to the API call (the real `codex` accepts the command line and
+its auth-failure output parses correctly).
+
+| Variable | Purpose |
+|---|---|
+| `CODEX_CLI` | Path to the `codex` executable (default: `codex` on `PATH`) |
+| `CODEX_API_KEY` | If set, queries are billed to this key. If unset, the CLI uses its `codex login`. |
+
+`OPENAI_API_KEY` is never passed to `codex`. Queries run in Codex's read-only sandbox with
+the shell, file, browser, plugin and other tools disabled (see `DISABLED_FEATURES` in
+`src/cli_to_api/clis/codex.py`). The sandbox alone would still let the model read files,
+including Codex's stored credentials, so keep those features disabled. If a Codex update
+renames one of them, codex queries fail with "Unknown feature flag" until the list is
+updated.
+
 ### Gemini (untested)
 
 Requires [Gemini CLI](https://geminicli.com/) (`gemini`). Written from its docs; not yet
