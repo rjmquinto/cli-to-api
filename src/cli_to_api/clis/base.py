@@ -18,9 +18,23 @@ class CLI(ABC):
 
     @abstractmethod
     def supported_models(self) -> list[str]:
-        """Return the model identifiers this CLI can query."""
+        """Return the models this CLI can query.
+
+        Entries are exact model identifiers by default. They may instead be
+        templates (e.g. `claude-*`), in which case the subclass must override
+        `supports` to match against them.
+
+        The registry rejects a model listed by two CLIs, but compares entries
+        literally: overlapping templates across CLIs are not detected, and the
+        first registered CLI whose `supports` matches wins.
+        """
 
     def supports(self, model: str) -> bool:
+        """Return whether this CLI can query `model`.
+
+        Defaults to exact membership in `supported_models`. Override this
+        when `supported_models` returns templates.
+        """
         return model in self.supported_models()
 
     @abstractmethod
