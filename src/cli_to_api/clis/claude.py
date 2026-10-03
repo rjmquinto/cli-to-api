@@ -1,11 +1,7 @@
-import asyncio
-import contextlib
-import json
 import os
-import signal
-import tempfile
 
 from cli_to_api.clis.base import CLI, CLIError
+from cli_to_api.clis.process import Completed, exit_error, json_object, run_cli
 
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant. Answer the user's question."
 
@@ -46,33 +42,10 @@ class ClaudeCLI(CLI):
         return list(self._models)
 
     async def query(self, question: str, model: str) -> str:
-        with tempfile.TemporaryDirectory(prefix="cli-to-api-claude-") as workdir:
-            try:
-                process = await asyncio.create_subprocess_exec(
-                    *self._command(model),
-                    stdin=asyncio.subprocess.PIPE,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=workdir,
-                    env=self._env(),
-                    start_new_session=True,
-                )
-            except OSError as exc:
-                raise CLIError(
-                    f"Could not run claude executable {self._executable!r}: "
-                    f"{exc.strerror or exc}."
-                ) from exc
-
-            try:
-                stdout, stderr = await process.communicate(question.encode())
-            except asyncio.CancelledError:
-                # Kill the whole process group in case claude spawned children.
-                with contextlib.suppress(ProcessLookupError):
-                    os.killpg(process.pid, signal.SIGKILL)
-                await process.wait()
-                raise
-
-        return self._parse(process.returncode, stdout, stderr)
+        completed = await run_cli(
+            self.name, self._command(model), stdin=question.encode(), env=self._env()
+        )
+        return self._parse(completed)
 
     def _command(self, model: str) -> list[str]:
         command = [
@@ -99,30 +72,17 @@ class ClaudeCLI(CLI):
             env.pop("ANTHROPIC_API_KEY", None)
         return env
 
-    @staticmethod
-    def _parse(returncode: int | None, stdout: bytes, stderr: bytes) -> str:
-        try:
-            payload = json.loads(stdout)
-        except ValueError:
-            payload = None
-        result = payload.get("result") if isinstance(payload, dict) else None
+    def _parse(self, completed: Completed) -> str:
+        payload = json_object(completed.stdout)
+        result = payload.get("result") if payload else None
 
-        if returncode == 0 and isinstance(result, str) and not payload.get("is_error"):
+        if completed.returncode == 0 and isinstance(result, str) and not payload.get("is_error"):
             return result
 
         if isinstance(result, str) and result:
             raise CLIError(result)
-        if returncode != 0:
-            detail = _tail(stderr)
-            raise CLIError(
-                f"claude exited with status {returncode}"
-                + (f": {detail}" if detail else ".")
-            )
-        if isinstance(payload, dict) and payload.get("is_error"):
+        if completed.returncode != 0:
+            raise exit_error(self.name, completed)
+        if payload and payload.get("is_error"):
             raise CLIError(f"claude reported an error ({payload.get('subtype', 'unknown')}).")
         raise CLIError("Unexpected output from claude.")
-
-
-def _tail(data: bytes, lines: int = 5) -> str:
-    text = data.decode(errors="replace").strip()
-    return "\n".join(text.splitlines()[-lines:])
