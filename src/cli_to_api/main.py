@@ -1,7 +1,7 @@
 import os
 
 from cli_to_api.app import create_app
-from cli_to_api.clis import ClaudeCLI, MockCLI
+from cli_to_api.clis import AntigravityCLI, ClaudeCLI, GeminiCLI
 from cli_to_api.registry import CLIRegistry
 
 registry = CLIRegistry(
@@ -11,7 +11,15 @@ registry = CLIRegistry(
             executable=os.environ.get("CLAUDE_CLI", "claude"),
             api_key=os.environ.get("ANTHROPIC_API_KEY") or None,
         ),
-        MockCLI("gemini", ["gemini-2.5-pro", "gemini-2.5-flash"]),
+        GeminiCLI(
+            ["gemini-3.1-pro-preview", "gemini-3.5-flash", "gemini-3.5-flash-lite"],
+            executable=os.environ.get("GEMINI_CLI", "gemini"),
+            api_key=os.environ.get("GEMINI_API_KEY") or None,
+        ),
+        AntigravityCLI(
+            ["gemini-3.1-pro-high", "gemini-3.8-flash-high", "gemini-3.8-flash-medium"],
+            executable=os.environ.get("ANTIGRAVITY_CLI", "agy"),
+        ),
     ]
 )
 
