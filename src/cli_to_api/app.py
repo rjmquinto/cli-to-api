@@ -1,5 +1,4 @@
 import asyncio
-import math
 import time
 
 from fastapi import FastAPI, Request
@@ -66,9 +65,8 @@ def create_app(registry: CLIRegistry, *, timeout_s: float = 120) -> FastAPI:
                 504, "timeout", f"Model did not respond within {timeout_s:g}s."
             )
         except RateLimitedError as exc:
-            retry_after = max(1, math.ceil(exc.retry_after))
             return error_response(
-                429, "rate_limited", str(exc), headers={"Retry-After": str(retry_after)}
+                429, "rate_limited", str(exc), headers={"Retry-After": str(exc.retry_after)}
             )
         except CLIError as exc:
             return error_response(500, "upstream_error", str(exc))

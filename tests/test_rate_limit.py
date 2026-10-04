@@ -77,7 +77,7 @@ def test_rate_limited_cli_delegates_and_raises():
 
     with pytest.raises(RateLimitedError) as excinfo:
         asyncio.run(cli.query("hi", "claude-a"))
-    assert excinfo.value.retry_after == pytest.approx(60)
+    assert excinfo.value.retry_after == 60
     assert str(excinfo.value) == "Rate limit for claude exceeded; retry in 60s."
 
 
@@ -89,3 +89,12 @@ def test_rate_limited_cli_keeps_supports_override():
     cli = RateLimitedCLI(TemplateCLI("claude", ["claude-*"]), TokenBucket(1))
 
     assert cli.supports("claude-anything")
+
+
+@pytest.mark.parametrize(("wait", "expected"), [(29.01, 30), (30.0, 30), (0.2, 1), (0.0, 1)])
+def test_retry_after_is_rounded_up_to_whole_seconds(wait, expected):
+    error = RateLimitedError("claude", wait)
+
+    assert error.retry_after == expected
+    assert isinstance(error.retry_after, int)
+    assert str(error) == f"Rate limit for claude exceeded; retry in {expected}s."

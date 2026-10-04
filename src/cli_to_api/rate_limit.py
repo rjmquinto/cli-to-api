@@ -6,13 +6,15 @@ from cli_to_api.clis import CLI
 
 
 class RateLimitedError(Exception):
-    """A CLI's rate limit is exhausted; retry after `retry_after` seconds."""
+    """A CLI's rate limit is exhausted.
 
-    def __init__(self, cli_name: str, retry_after: float) -> None:
-        self.retry_after = retry_after
-        super().__init__(
-            f"Rate limit for {cli_name} exceeded; retry in {math.ceil(retry_after)}s."
-        )
+    `retry_after` is the wait in whole seconds, rounded up (at least 1), so a
+    token has refilled by then (though another request may take it first).
+    """
+
+    def __init__(self, cli_name: str, wait_seconds: float) -> None:
+        self.retry_after = max(1, math.ceil(wait_seconds))
+        super().__init__(f"Rate limit for {cli_name} exceeded; retry in {self.retry_after}s.")
 
 
 class TokenBucket:
