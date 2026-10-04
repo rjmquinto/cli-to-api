@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from cli_to_api.clis import CLIError
+from cli_to_api.rate_limit import RateLimitedError
 from cli_to_api.registry import CLIRegistry, UnknownModelError
 
 
@@ -23,10 +24,13 @@ class QueryResponse(BaseModel):
     duration_ms: int
 
 
-def error_response(status_code: int, code: str, message: str) -> JSONResponse:
+def error_response(
+    status_code: int, code: str, message: str, headers: dict[str, str] | None = None
+) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
         content={"error": {"code": code, "message": message}},
+        headers=headers,
     )
 
 
@@ -59,6 +63,10 @@ def create_app(registry: CLIRegistry, *, timeout_s: float = 120) -> FastAPI:
         except TimeoutError:
             return error_response(
                 504, "timeout", f"Model did not respond within {timeout_s:g}s."
+            )
+        except RateLimitedError as exc:
+            return error_response(
+                429, "rate_limited", str(exc), headers={"Retry-After": str(exc.retry_after)}
             )
         except CLIError as exc:
             return error_response(500, "upstream_error", str(exc))
