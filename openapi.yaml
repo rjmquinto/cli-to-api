@@ -26,7 +26,11 @@ paths:
       description: |
         Sends `question` to the LLM identified by `model` and returns its answer.
         `model` is free-form; the server validates it against its configured
-        models and rejects unknown values with `400 unknown_model`.
+        models and rejects unknown values with `400 unknown_model`. Models of a
+        CLI the operator has disabled are reported as unknown.
+
+        Each CLI can have a requests-per-minute limit; requests beyond it get
+        `429 rate_limited`.
       requestBody:
         required: true
         content:
@@ -64,6 +68,22 @@ paths:
                     error:
                       code: unknown_model
                       message: "Model 'gpt-9' is not configured."
+        "429":
+          description: The rate limit for the CLI serving this model is exhausted.
+          headers:
+            Retry-After:
+              description: Seconds until a request for this CLI will be accepted.
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: rate_limited
+                  message: Rate limit for claude exceeded; retry in 30s.
         "500":
           description: |
             The CLI failed or produced no usable answer (`upstream_error`), or the
@@ -138,6 +158,7 @@ components:
               enum:
                 - invalid_request
                 - unknown_model
+                - rate_limited
                 - upstream_error
                 - internal_error
                 - timeout

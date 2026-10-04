@@ -20,6 +20,25 @@ The API is described in [openapi.yaml](openapi.yaml). CLIs and their model lists
 wired up in `src/cli_to_api/main.py`. A model routes to the CLI that lists it; if that CLI
 isn't installed, queries for it return `500 upstream_error`.
 
+### Rate limits
+
+Each CLI can be limited to a number of requests per minute. Values are decimals (`0.5` =
+one request every two minutes).
+
+| Variable | Purpose |
+|---|---|
+| `RATE_LIMIT_RPM` | Default limit for every CLI. Unset: unlimited. |
+| `CLAUDE_RATE_LIMIT_RPM`, `GEMINI_RATE_LIMIT_RPM`, `CODEX_RATE_LIMIT_RPM`, `ANTIGRAVITY_RATE_LIMIT_RPM` | Limit for one CLI, overriding the default. |
+
+- A negative value means no limit; `0` disables the CLI, so its models return
+  `400 unknown_model`. Empty values count as unset; anything non-numeric stops the server
+  at startup.
+- A CLI can take up to a minute's worth of requests at once (at least one), then one more
+  each time capacity refills. Requests beyond that get `429 rate_limited` with a
+  `Retry-After` header in seconds.
+- Limits are kept in memory per server process: running N uvicorn workers allows N times
+  the configured rate.
+
 ### Claude
 
 Requires Claude Code (`claude`) installed. Configure with environment variables:

@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 
 from cli_to_api.app import create_app
 from cli_to_api.clis import MockCLI
+from cli_to_api.rate_limit import RateLimitedCLI, TokenBucket
 from cli_to_api.registry import CLIRegistry
 
 
@@ -96,3 +97,24 @@ def test_timeout():
 
     assert response.status_code == 504
     assert response.json()["error"]["code"] == "timeout"
+
+
+def test_rate_limited():
+    limited = RateLimitedCLI(MockCLI("claude", ["claude-a"]), TokenBucket(2))
+    client = TestClient(create_app(CLIRegistry([limited])))
+
+    for _ in range(2):
+        assert client.post("/query", json={"question": "hi", "model": "claude-a"}).status_code == 200
+    response = client.post("/query", json={"question": "hi", "model": "claude-a"})
+
+    assert response.status_code == 429
+    assert response.json()["error"]["code"] == "rate_limited"
+    assert 29 <= int(response.headers["Retry-After"]) <= 30
+
+
+def test_unknown_model_does_not_use_a_slot():
+    limited = RateLimitedCLI(MockCLI("claude", ["claude-a"]), TokenBucket(1))
+    client = TestClient(create_app(CLIRegistry([limited])))
+
+    assert client.post("/query", json={"question": "hi", "model": "gpt-9"}).status_code == 400
+    assert client.post("/query", json={"question": "hi", "model": "claude-a"}).status_code == 200
