@@ -65,15 +65,24 @@ paths:
                       code: unknown_model
                       message: "Model 'gpt-9' is not configured."
         "500":
-          description: The CLI failed or produced no usable answer.
+          description: |
+            The CLI failed or produced no usable answer (`upstream_error`), or the
+            service itself hit an unexpected error (`internal_error`).
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  code: upstream_error
-                  message: CLI exited with status 1.
+              examples:
+                upstreamError:
+                  value:
+                    error:
+                      code: upstream_error
+                      message: CLI exited with status 1.
+                internalError:
+                  value:
+                    error:
+                      code: internal_error
+                      message: Internal server error.
         "504":
           description: The CLI did not finish within the server's timeout.
           content:
@@ -130,6 +139,7 @@ components:
                 - invalid_request
                 - unknown_model
                 - upstream_error
+                - internal_error
                 - timeout
               description: Machine-readable error code.
             message:
