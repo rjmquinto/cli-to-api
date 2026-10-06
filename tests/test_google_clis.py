@@ -58,6 +58,7 @@ def test_gemini_success(fake):
     assert seen["stdin"] == "-what is 2+2?"
     assert seen["argv"] == [
         "--output-format", "json", "--model", "model-a", "--approval-mode", "default",
+        "--skip-trust",
     ]
 
 
