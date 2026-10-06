@@ -14,6 +14,12 @@ class GeminiCLI(CLI):
     query runs in a fresh empty working directory with
     `--approval-mode default`, so tools that need confirmation can't run.
 
+    `--skip-trust` trusts that directory for the run. Headless mode exits with
+    FatalUntrustedWorkspaceError in an untrusted folder when folder trust is
+    enabled, and a fresh directory is never on the trusted list. Trust only
+    unlocks loading workspace settings, .env, MCP servers and commands, and
+    the directory is empty.
+
     With `api_key`, the CLI is given GEMINI_API_KEY. Without it, any inherited
     GEMINI_API_KEY is removed and the CLI uses the server's cached login.
     Gemini CLI does not document which wins when a key and a cached login
@@ -48,6 +54,7 @@ class GeminiCLI(CLI):
             "--output-format", "json",
             "--model", model,
             "--approval-mode", "default",
+            "--skip-trust",
         ]
 
     def _env(self) -> dict[str, str]:
